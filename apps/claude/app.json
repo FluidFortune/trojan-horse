@@ -1,0 +1,7 @@
+{
+  "name": "Claude",
+  "description": "Anthropic Claude AI assistant",
+  "icon": "🤖",
+  "version": "1.0.0",
+  "color": "#cc785c"
+}

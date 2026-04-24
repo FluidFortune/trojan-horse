@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wardrive Splitter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #04080c;
+    --panel:      #080e14;
+    --border:     #0d2035;
+    --border-hi:  #1a4060;
+    --accent:     #00c8ff;
+    --accent2:    #0080c8;
+    --green:      #00e878;
+    --yellow:     #ffe040;
+    --red:        #ff4040;
+    --dim:        #2a4a60;
+    --text:       #a8cce0;
+    --text-bright:#d8eef8;
+    --glow-cyan:  rgba(0,200,255,0.12);
+    --glow-green: rgba(0,232,120,0.1);
+    --scan-line:  repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,200,255,0.015) 2px,
+      rgba(0,200,255,0.015) 4px
+    );
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: var(--scan-line);
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.6;
+  }
+
+  /* ── LAYOUT ─────────────────────────────────────────────── */
+
+  .app {
+    display: grid;
+    grid-template-rows: 52px 1fr 28px;
+    height: 100vh;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
+
+  header {
+    background: #020810;
+    border-bottom: 1px solid var(--accent2);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: sweep 4s linear infinite;
+  }
+
+  @keyframes sweep {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 0.9em;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-shadow: 0 0 20px rgba(0,200,255,0.6);
+    white-space: nowrap;
+  }
+
+  .logo em {
+    color: var(--green);
+    font-style: normal;
+  }
+
+  .header-tag {
+    font-size: 0.65em;
+    color: var(--dim);
+    letter-spacing: 2px;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .badge {
+    font-size: 0.6em;
+    color: var(--accent);
+    border: 1px solid var(--accent2);
+    padding: 2px 8px;
+    letter-spacing: 1px;
+    animation: pulse-badge 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-badge {
+    0%, 100% { border-color: var(--accent2); color: var(--accent); }
+    50% { border-color: var(--accent); color: var(--text-bright); box-shadow: 0 0 8px var(--glow-cyan); }
+  }
+
+  /* ── MAIN CONTENT ───────────────────────────────────────── */
+
+  main {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    overflow: hidden;
+  }
+
+  /* ── LEFT PANEL ─────────────────────────────────────────── */
+
+  .controls {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .controls-inner {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
+  }
+
+  /* ── SECTION HEADERS ────────────────────────────────────── */
+
+  .section-head {
+    background: #020810;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 5px 12px;
+    font-size: 0.62em;
+    color: var(--accent2);
+    letter-spacing: 2px;
+    margin: 12px -16px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-head:first-child { margin-top: -16px; }
+
+  .section-head::before {
+    content: '//';
+    color: var(--dim);
+  }
+
+  /* ── FILE INPUT ─────────────────────────────────────────── */
+
+  .file-drop {
+    border: 1px dashed var(--border-hi);
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    background: #050c14;
+  }
+
+  .file-drop:hover, .file-drop.drag-over {
+    border-color: var(--accent);
+    background: var(--glow-cyan);
+    box-shadow: inset 0 0 20px rgba(0,200,255,0.05);
+  }
+
+  .file-drop input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .file-icon { font-size: 1.8em; margin-bottom: 6px; }
+
+  .file-name {
+    font-size: 0.7em;
+    color: var(--green);
+    word-break: break-all;
+    margin-top: 4px;
+  }
+
+  .file-hint {
+    font-size: 0.62em;
+    color: var(--dim);
+    margin-top: 4px;
+  }
+
+  /* ── OUTPUT DIR ─────────────────────────────────────────── */
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  .field-label {
+    font-size: 0.62em;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  .field-input {
+    background: #050c14;
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: inherit;
+    font-size: 0.72em;
+    padding: 6px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .field-input:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 8px rgba(0,200,255,0.1);
+  }
+
+  /* ── SPLIT MODE SELECTOR ────────────────────────────────── */
+
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .mode-btn {
+    background: #050c14;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: inherit;
+    font-size: 0.65em;
+    padding: 8px 4px;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 1px;
+    transition: all 0.12s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .mode-btn span { font-size: 1.2em; }
+
+  .mode-btn:hover {
+    border-color: var(--accent2);
+    color: var(--text);
+  }
+
+  .mode-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--glow-cyan);
+    box-shadow: 0 0 10px var(--glow-cyan);
+  }
+
+  .mode-btn.full-width {
+    grid-column: 1 / -1;
+  }
+
+  /* ── OPTION FIELDS ──────────────────────────────────────── */
+
+  .opt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  /* ── TOGGLE ROW ─────────────────────────────────────────── */
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toggle-label {
+    font-size: 0.68em;
+    color: var(--text);
+  }
+
+  .toggle-sub {
+    font-size: 0.58em;
+    color: var(--dim);
+    display: block;
+  }
+
+  .toggle {
+    position: relative;
+    width: 36px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { display: none; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .toggle input:checked + .toggle-track {
+    background: var(--accent2);
+    box-shadow: 0 0 8px rgba(0,200,255,0.3);
+  }
+
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--dim);
+    top: 3px; left: 3px;
+    transition: all 0.15s;
+  }
+
+  .toggle input:checked + .toggle-track::after {
+    transform: translateX(18px);
+    background: var(--accent);
+  }
+
+  /* ── FILTER NUMBER INPUT ────────────────────────────────── */
+
+  .num-field {
+    background: #050c14;
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: inherit;
+    font-size: 0.72em;
+    padding: 5px 8px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+
+  .num-field:focus { border-color: var(--accent2); }
+
+  .num-field:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  /* ── ACTION BUTTON ──────────────────────────────────────── */
+
+  .run-btn {
+    display: block;
+    width: calc(100% + 32px);
+    margin: 14px -16px -16px;
+    padding: 14px;
+    background: #001828;
+    border: none;
+    border-top: 1px solid var(--accent2);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .run-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--glow-cyan);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s;
+  }
+
+  .run-btn:hover::before { transform: scaleX(1); }
+
+  .run-btn:hover {
+    color: var(--text-bright);
+    border-top-color: var(--accent);
+    box-shadow: 0 -4px 20px var(--glow-cyan);
+  }
+
+  .run-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .run-btn:disabled::before { display: none; }
+
+  .run-btn span { position: relative; z-index: 1; }
+
+  /* ── TERMINAL PANEL ─────────────────────────────────────── */
+
+  .terminal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .terminal-header {
+    background: #020810;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .term-title {
+    font-size: 0.65em;
+    color: var(--dim);
+    letter-spacing: 2px;
+  }
+
+  .term-status {
+    font-size: 0.6em;
+    padding: 2px 8px;
+    letter-spacing: 1px;
+    margin-left: auto;
+  }
+
+  .term-status.idle  { color: var(--dim); border: 1px solid var(--border); }
+  .term-status.running { color: var(--yellow); border: 1px solid var(--yellow); animation: blink-status 0.8s step-end infinite; }
+  .term-status.done  { color: var(--green); border: 1px solid var(--green); }
+  .term-status.error { color: var(--red);   border: 1px solid var(--red); }
+
+  @keyframes blink-status {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .terminal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
+    font-size: 0.75em;
+    line-height: 1.7;
+  }
+
+  .log-line { white-space: pre-wrap; word-break: break-all; }
+  .log-line.info  { color: var(--accent); }
+  .log-line.ok    { color: var(--green); }
+  .log-line.warn  { color: var(--yellow); }
+  .log-line.error { color: var(--red); }
+  .log-line.dim   { color: var(--dim); }
+  .log-line.head  { color: var(--text-bright); font-weight: bold; }
+  .log-line.step  { color: var(--text); }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    animation: blink-cursor 1s step-end infinite;
+    margin-left: 2px;
+  }
+
+  @keyframes blink-cursor { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── STATS BAR ──────────────────────────────────────────── */
+
+  .stats-bar {
+    background: #020810;
+    border-top: 1px solid var(--border);
+    padding: 4px 16px;
+    display: flex;
+    gap: 24px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.62em;
+  }
+
+  .stat-label { color: var(--dim); letter-spacing: 1px; }
+
+  .stat-value { color: var(--accent); font-weight: bold; }
+
+  /* ── FOOTER ─────────────────────────────────────────────── */
+
+  footer {
+    background: #020810;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 0.58em;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  #footer-status { color: var(--accent2); }
+
+  /* ── PROGRESS BAR ───────────────────────────────────────── */
+
+  .progress-wrap {
+    height: 2px;
+    background: var(--border);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    width: 0%;
+    transition: width 0.3s;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .progress-bar.indeterminate {
+    width: 30% !important;
+    animation: indeterminate 1.5s linear infinite;
+  }
+
+  @keyframes indeterminate {
+    0%   { transform: translateX(-150%); }
+    100% { transform: translateX(500%); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">🛰 WARDRIVE <em>SPLITTER</em></div>
+    <div class="header-tag">PISCES MOON OS · SMELTER FEED PREP</div>
+    <div class="header-right">
+      <div class="badge">WIGLE FORMAT</div>
+      <div class="badge" id="platform-badge">NATIVE</div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- LEFT: CONTROLS -->
+    <div class="controls">
+      <div class="controls-inner">
+
+        <div class="section-head">INPUT FILE</div>
+
+        <div class="file-drop" id="file-drop">
+          <input type="file" id="file-input" accept=".csv">
+          <div class="file-icon">📡</div>
+          <div style="font-size:0.7em;color:var(--text)">DROP WARDRIVE.CSV</div>
+          <div class="file-hint">or click to browse</div>
+          <div class="file-name" id="file-name-display">No file selected</div>
+        </div>
+
+        <div class="section-head">OUTPUT DIRECTORY</div>
+
+        <div class="field-group">
+          <div class="field-label">OUTPUT PATH</div>
+          <input type="text" class="field-input" id="output-dir"
+                 placeholder="./smelter_output" value="smelter_output">
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">BASE FILENAME (optional)</div>
+          <input type="text" class="field-input" id="base-name"
+                 placeholder="auto-detect from input">
+        </div>
+
+        <div class="section-head">SPLIT MODE</div>
+
+        <div class="mode-grid">
+          <button class="mode-btn active" data-mode="rows">
+            <span>🔢</span>BY ROWS
+          </button>
+          <button class="mode-btn" data-mode="date">
+            <span>📅</span>BY DATE
+          </button>
+          <button class="mode-btn" data-mode="session">
+            <span>🛣</span>SESSION
+          </button>
+          <button class="mode-btn" data-mode="geo">
+            <span>🗺</span>GEO GRID
+          </button>
+          <button class="mode-btn full-width" data-mode="filter">
+            <span>🧹</span>FILTER ONLY (NO SPLIT)
+          </button>
+        </div>
+
+        <!-- Mode-specific options -->
+        <div id="opt-rows" class="field-group">
+          <div class="field-label">ROWS PER CHUNK</div>
+          <input type="number" class="num-field" id="opt-rows-val"
+                 value="50000" min="1000" max="1000000" step="1000">
+        </div>
+
+        <div id="opt-session" class="field-group" style="display:none">
+          <div class="field-label">SESSION GAP (MINUTES)</div>
+          <input type="number" class="num-field" id="opt-session-gap"
+                 value="60" min="1" max="1440">
+        </div>
+
+        <div id="opt-geo" class="field-group" style="display:none">
+          <div class="field-label">GRID CELL SIZE (DEGREES)</div>
+          <input type="number" class="num-field" id="opt-geo-size"
+                 value="0.1" min="0.01" max="10" step="0.01">
+          <div style="font-size:0.6em;color:var(--dim);margin-top:3px">
+            0.1° ≈ 11 km at equator
+          </div>
+        </div>
+
+        <div class="section-head">FILTERS</div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">WIFI ONLY</div>
+            <span class="toggle-sub">exclude BLE entries</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="wifi-only">
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">BLE ONLY</div>
+            <span class="toggle-sub">exclude WiFi entries</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="ble-only">
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">MIN RSSI FILTER</div>
+            <span class="toggle-sub">drop weak signals</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="rssi-enable" onchange="toggleRssi(this)">
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+
+        <div class="field-group" style="margin-top:6px">
+          <div class="field-label">MIN RSSI (dBm)</div>
+          <input type="number" class="num-field" id="min-rssi"
+                 value="-80" min="-120" max="0" disabled>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">SKIP DEDUP</div>
+            <span class="toggle-sub">keep exact duplicates</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="no-dedup">
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+
+        <button class="run-btn" id="run-btn" onclick="runSplit()" disabled>
+          <span>▶ PROCESS FILE</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: TERMINAL -->
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="term-title">// TERMINAL OUTPUT</div>
+        <div class="term-status idle" id="term-status">IDLE</div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="terminal-body" id="terminal">
+        <div class="log-line head">╔═══════════════════════════════════════════╗</div>
+        <div class="log-line head">║  🛰  WARDRIVE CSV SPLITTER                ║</div>
+        <div class="log-line head">║     Smelter-ready chunk generator         ║</div>
+        <div class="log-line head">╚═══════════════════════════════════════════╝</div>
+        <div class="log-line dim">Spadra Smelter handles ~300K rows.</div>
+        <div class="log-line dim">Feed it sensibly.</div>
+        <div class="log-line dim">─────────────────────────────────────────────</div>
+        <div class="log-line step">Select a wardrive CSV and configure options.</div>
+        <div class="log-line step">Then click PROCESS FILE to begin.<span class="cursor"></span></div>
+      </div>
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat"><span class="stat-label">INPUT</span><span class="stat-value" id="stat-rows">—</span></div>
+        <div class="stat"><span class="stat-label">OUTPUT FILES</span><span class="stat-value" id="stat-files">—</span></div>
+        <div class="stat"><span class="stat-label">WRITTEN</span><span class="stat-value" id="stat-written">—</span></div>
+        <div class="stat"><span class="stat-label">WIFI</span><span class="stat-value" id="stat-wifi">—</span></div>
+        <div class="stat"><span class="stat-label">BLE</span><span class="stat-value" id="stat-ble">—</span></div>
+        <div class="stat"><span class="stat-label">DUPES REMOVED</span><span class="stat-value" id="stat-dupes">—</span></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <span id="footer-status">READY</span>
+    <span>"The network is a resource. The intelligence is yours."</span>
+    <span>PISCES MOON OS</span>
+  </footer>
+
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let selectedFile = null;
+let inputFilePath = null;   // native path (Trojan Horse)
+let isRunning = false;
+
+const WIGLE_HEADER = [
+  "MAC","SSID","AuthMode","FirstSeen","Channel",
+  "RSSI","CurrentLatitude","CurrentLongitude",
+  "AltitudeMeters","AccuracyMeters","Type"
+];
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  if (window.spadra?.isNative) {
+    document.getElementById('platform-badge').textContent = window.spadra.platform.toUpperCase();
+    window.spadra.setTitle('Wardrive Splitter');
+    logLine('Native mode — file I/O via Trojan Horse bridge', 'info');
+  } else {
+    document.getElementById('platform-badge').textContent = 'BROWSER';
+    document.getElementById('platform-badge').style.color = 'var(--yellow)';
+    logLine('Browser mode — file processing in-memory', 'info');
+  }
+
+  // Set up mode buttons
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
+  // File drop
+  const drop = document.getElementById('file-drop');
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) handleFileSelect(f);
+  });
+  document.getElementById('file-input').addEventListener('change', e => {
+    if (e.target.files[0]) handleFileSelect(e.target.files[0]);
+  });
+
+  // Wifi/BLE mutual exclusion
+  document.getElementById('wifi-only').addEventListener('change', e => {
+    if (e.target.checked) document.getElementById('ble-only').checked = false;
+  });
+  document.getElementById('ble-only').addEventListener('change', e => {
+    if (e.target.checked) document.getElementById('wifi-only').checked = false;
+  });
+}
+
+// ─── FILE SELECTION ───────────────────────────────────────────────────────────
+function handleFileSelect(file) {
+  selectedFile = file;
+
+  // Try to get native path (Trojan Horse provides this via the File object)
+  if (file.path) inputFilePath = file.path;
+
+  document.getElementById('file-name-display').textContent = file.name;
+
+  // Auto-set base name
+  const stem = file.name.replace(/\.csv$/i, '');
+  const baseInput = document.getElementById('base-name');
+  if (!baseInput.value) baseInput.placeholder = stem;
+
+  logLine('─────────────────────────────────────────────', 'dim');
+  logLine(`FILE SELECTED: ${file.name}`, 'info');
+  logLine(`  Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`, 'step');
+
+  document.getElementById('run-btn').disabled = false;
+  setFooterStatus('FILE LOADED — READY TO PROCESS');
+
+  // Quick preview: count lines
+  previewCSV(file);
+}
+
+async function previewCSV(file) {
+  const slice = file.slice(0, 65536); // first 64KB
+  const text = await slice.text();
+  const lines = text.split('\n').filter(l => !l.startsWith('#') && l.trim());
+  const approxTotal = Math.round((lines.length / 65536) * file.size);
+  logLine(`  Estimated rows: ~${approxTotal.toLocaleString()}`, 'dim');
+  logLine(`  First col preview: ${lines.slice(1, 3).map(l => l.split(',')[0]).join(', ')}`, 'dim');
+}
+
+// ─── MODE SWITCHING ───────────────────────────────────────────────────────────
+function setMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode));
+
+  document.getElementById('opt-rows').style.display    = mode === 'rows'    ? '' : 'none';
+  document.getElementById('opt-session').style.display = mode === 'session' ? '' : 'none';
+  document.getElementById('opt-geo').style.display     = mode === 'geo'     ? '' : 'none';
+}
+
+function toggleRssi(cb) {
+  document.getElementById('min-rssi').disabled = !cb.checked;
+}
+
+// ─── LOGGING ──────────────────────────────────────────────────────────────────
+function logLine(text, cls = 'step') {
+  const term = document.getElementById('terminal');
+
+  // Remove cursor from last line
+  const prev = term.querySelector('.cursor');
+  if (prev) prev.remove();
+
+  const div = document.createElement('div');
+  div.className = `log-line ${cls}`;
+  div.textContent = text;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function logWithCursor(text, cls = 'step') {
+  const term = document.getElementById('terminal');
+  const prev = term.querySelector('.cursor');
+  if (prev) prev.remove();
+
+  const div = document.createElement('div');
+  div.className = `log-line ${cls}`;
+  div.textContent = text;
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  div.appendChild(cursor);
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function clearTerminal() {
+  document.getElementById('terminal').innerHTML = '';
+}
+
+function setStatus(s) {
+  const el = document.getElementById('term-status');
+  el.textContent = s;
+  el.className = `term-status ${s.toLowerCase().includes('run') ? 'running' : s.toLowerCase() === 'done' ? 'done' : s.toLowerCase().includes('error') || s.toLowerCase().includes('fail') ? 'error' : 'idle'}`;
+}
+
+function setFooterStatus(s) {
+  document.getElementById('footer-status').textContent = s;
+}
+
+function setStat(id, val) {
+  document.getElementById(`stat-${id}`).textContent = val;
+}
+
+function setProgress(pct, indeterminate = false) {
+  const bar = document.getElementById('progress-bar');
+  if (indeterminate) {
+    bar.classList.add('indeterminate');
+  } else {
+    bar.classList.remove('indeterminate');
+    bar.style.width = `${pct}%`;
+  }
+}
+
+// ─── MAIN PROCESSING ──────────────────────────────────────────────────────────
+async function runSplit() {
+  if (!selectedFile || isRunning) return;
+
+  isRunning = true;
+  document.getElementById('run-btn').disabled = true;
+  clearTerminal();
+  setStatus('RUNNING');
+  setProgress(0, true);
+  setFooterStatus('PROCESSING...');
+
+  logLine('╔═══════════════════════════════════════════╗', 'head');
+  logLine('║  🛰  WARDRIVE CSV SPLITTER                ║', 'head');
+  logLine('╚═══════════════════════════════════════════╝', 'head');
+
+  const mode = document.querySelector('.mode-btn.active')?.dataset.mode || 'rows';
+  const outputDir = document.getElementById('output-dir').value || 'smelter_output';
+  const baseName = document.getElementById('base-name').value ||
+    selectedFile.name.replace(/\.csv$/i, '');
+
+  const wifiOnly  = document.getElementById('wifi-only').checked;
+  const bleOnly   = document.getElementById('ble-only').checked;
+  const noDedup   = document.getElementById('no-dedup').checked;
+  const rssiEnabled = document.getElementById('rssi-enable').checked;
+  const minRssi   = rssiEnabled ? parseInt(document.getElementById('min-rssi').value) : null;
+  const rowsVal   = parseInt(document.getElementById('opt-rows-val').value) || 50000;
+  const gapMin    = parseInt(document.getElementById('opt-session-gap').value) || 60;
+  const geoSize   = parseFloat(document.getElementById('opt-geo-size').value) || 0.1;
+
+  try {
+    logLine(`[....] Loading ${selectedFile.name} ...`, 'step');
+    const t0 = Date.now();
+
+    // ── LOAD CSV ──────────────────────────────────────────────
+    const text = await selectedFile.text();
+    const rows = loadCSV(text);
+    const sourceCount = rows.length;
+
+    logLine(`[ OK ] Loaded ${rows.length.toLocaleString()} valid rows`, 'ok');
+    setStat('rows', rows.length.toLocaleString());
+
+    // ── APPLY FILTERS ─────────────────────────────────────────
+    logLine('[INFO] Applying filters...', 'info');
+    const filtered = applyFilters(rows, { wifiOnly, bleOnly, minRssi, noDedup });
+
+    if (!filtered.rows.length) {
+      logLine('[WARN] No rows remain after filtering. Nothing to write.', 'warn');
+      setStatus('DONE');
+      setProgress(100);
+      return finish();
+    }
+
+    const dupes = filtered.dupeCount;
+    logLine(`[ OK ] ${filtered.rows.length.toLocaleString()} rows after filters (${dupes.toLocaleString()} dupes removed)`, 'ok');
+    setStat('dupes', dupes.toLocaleString());
+
+    const wifiCount = filtered.rows.filter(r => r.Type?.toUpperCase() === 'WIFI').length;
+    const bleCount  = filtered.rows.filter(r => r.Type?.toUpperCase() === 'BT-LE').length;
+    setStat('wifi', wifiCount.toLocaleString());
+    setStat('ble', bleCount.toLocaleString());
+
+    setProgress(30);
+
+    // ── SPLIT ────────────────────────────────────────────────
+    let chunks = [];
+    logLine(`[....] Splitting (mode: ${mode.toUpperCase()})...`, 'step');
+
+    switch (mode) {
+      case 'rows':    chunks = splitByRows(filtered.rows, rowsVal); break;
+      case 'date':    chunks = splitByDate(filtered.rows); break;
+      case 'session': chunks = splitBySession(filtered.rows, gapMin); break;
+      case 'geo':     chunks = splitByGeo(filtered.rows, geoSize); break;
+      case 'filter':  chunks = [{ rows: filtered.rows, label: 'filtered', suffix: '_filtered' }]; break;
+    }
+
+    logLine(`[INFO] ${chunks.length} output file(s) to write`, 'info');
+    setProgress(50);
+
+    // ── WRITE OUTPUT ─────────────────────────────────────────
+    let totalWritten = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const idx = (i + 1).toString().padStart(3, '0');
+      const fname = mode === 'filter' ? `${baseName}_filtered.csv` :
+                    mode === 'date' || mode === 'session' ? `${baseName}${chunk.suffix}.csv` :
+                    mode === 'geo' ? `${baseName}_geo_${idx}.csv` :
+                    `${baseName}_${idx}.csv`;
+
+      const csv = rowsToCSV(chunk.rows);
+      const path = outputDir.replace(/\/$/, '') + '/' + fname;
+
+      await writeOutput(path, csv);
+      totalWritten += chunk.rows.length;
+
+      const wCount = chunk.rows.filter(r => r.Type?.toUpperCase() === 'WIFI').length;
+      const bCount = chunk.rows.filter(r => r.Type?.toUpperCase() === 'BT-LE').length;
+      const uMac   = new Set(chunk.rows.map(r => r.MAC)).size;
+      const sizeKB = (new Blob([csv]).size / 1024).toFixed(1);
+
+      logLine(`[ OK ] ${fname}${chunk.label ? ` [${chunk.label}]` : ''}`, 'ok');
+      logLine(`         ${chunk.rows.length.toLocaleString()} rows  |  ${wCount.toLocaleString()} WiFi  ${bCount.toLocaleString()} BLE  |  ${uMac.toLocaleString()} MACs  |  ${sizeKB} KB`, 'dim');
+
+      setProgress(50 + Math.round((i / chunks.length) * 45));
+    }
+
+    // ── SUMMARY ──────────────────────────────────────────────
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    logLine('─────────────────────────────────────────────', 'dim');
+    logLine('  SUMMARY', 'head');
+    logLine('─────────────────────────────────────────────', 'dim');
+    logLine(`  Source:       ${selectedFile.name} (${sourceCount.toLocaleString()} rows after filter)`, 'step');
+    logLine(`  Output files: ${chunks.length}`, 'step');
+    logLine(`  Total rows:   ${totalWritten.toLocaleString()}`, 'step');
+    logLine(`  Output dir:   ${outputDir}/`, 'step');
+    logLine(`  Time:         ${elapsed}s`, 'step');
+    logLine('─────────────────────────────────────────────', 'dim');
+    logLine('  Drop any output file straight into Spadra Smelter.', 'ok');
+    logLine(`  Source file untouched: ${selectedFile.name}`, 'dim');
+    logWithCursor('  DONE.', 'ok');
+
+    setStat('files', chunks.length.toLocaleString());
+    setStat('written', totalWritten.toLocaleString());
+    setProgress(100);
+    setStatus('DONE');
+    setFooterStatus(`COMPLETE — ${chunks.length} files written`);
+
+  } catch (e) {
+    logLine(`[FAIL] ${e.message}`, 'error');
+    setStatus('ERROR');
+    setFooterStatus('ERROR — check terminal');
+    setProgress(0);
+  }
+
+  isRunning = false;
+  document.getElementById('run-btn').disabled = false;
+}
+
+// ─── CSV LOADING ──────────────────────────────────────────────────────────────
+function loadCSV(text) {
+  const lines = text.split('\n');
+  let startIdx = 0;
+
+  // Skip WiGLE app header lines starting with #
+  while (startIdx < lines.length && lines[startIdx].trimStart().startsWith('#')) startIdx++;
+
+  const headerLine = lines[startIdx].trim();
+  const headers = parseCSVLine(headerLine);
+
+  const missing = WIGLE_HEADER.filter(h => !headers.includes(h));
+  if (missing.length) {
+    throw new Error(`Missing required columns: ${missing.join(', ')}\nExpected WiGLE CSV format.`);
+  }
+
+  const rows = [];
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const vals = parseCSVLine(line);
+    const row = {};
+    headers.forEach((h, j) => row[h] = vals[j] ?? '');
+
+    const mac = row.MAC?.trim();
+    const lat = parseFloat(row.CurrentLatitude) || 0;
+    const lng = parseFloat(row.CurrentLongitude) || 0;
+    if (!mac) continue;
+    if (Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01) continue;
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let inQuote = false, cur = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (c === ',' && !inQuote) {
+      result.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ─── FILTERS ──────────────────────────────────────────────────────────────────
+function applyFilters(rows, { wifiOnly, bleOnly, minRssi, noDedup }) {
+  let r = [...rows];
+
+  if (wifiOnly)  r = r.filter(row => row.Type?.toUpperCase() === 'WIFI');
+  if (bleOnly)   r = r.filter(row => row.Type?.toUpperCase() === 'BT-LE');
+
+  if (minRssi !== null && minRssi !== undefined) {
+    r = r.filter(row => {
+      const rssi = parseInt(row.RSSI) || -999;
+      return isNaN(rssi) || rssi >= minRssi;
+    });
+  }
+
+  let dupeCount = 0;
+  if (!noDedup) {
+    const seen = new Set();
+    const deduped = [];
+    for (const row of r) {
+      const lat = Math.round(parseFloat(row.CurrentLatitude || 0) * 10000) / 10000;
+      const lng = Math.round(parseFloat(row.CurrentLongitude || 0) * 10000) / 10000;
+      const key = `${row.MAC?.toUpperCase()}|${lat}|${lng}`;
+      if (!seen.has(key)) { seen.add(key); deduped.push(row); }
+      else dupeCount++;
+    }
+    r = deduped;
+  }
+
+  return { rows: r, dupeCount };
+}
+
+// ─── SPLIT MODES ──────────────────────────────────────────────────────────────
+function splitByRows(rows, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const idx = Math.floor(i / chunkSize) + 1;
+    chunks.push({ rows: rows.slice(i, i + chunkSize), label: '', suffix: `_${String(idx).padStart(3,'0')}` });
+  }
+  return chunks;
+}
+
+function splitByDate(rows) {
+  const buckets = {};
+  const unparseable = [];
+  for (const row of rows) {
+    const seen = row.FirstSeen?.trim() || '';
+    const dt = parseDate(seen);
+    if (dt) {
+      const d = dt.toISOString().slice(0,10);
+      (buckets[d] = buckets[d] || []).push(row);
+    } else {
+      unparseable.push(row);
+    }
+  }
+  const chunks = Object.keys(buckets).sort().map(d => ({
+    rows: buckets[d], label: d, suffix: `_${d}`
+  }));
+  if (unparseable.length) chunks.push({ rows: unparseable, label: 'unknown date', suffix: '_unknown_date' });
+  return chunks;
+}
+
+function splitBySession(rows, gapMinutes) {
+  const sorted = [...rows].sort((a, b) => {
+    const ta = parseDate(a.FirstSeen)?.getTime() || 0;
+    const tb = parseDate(b.FirstSeen)?.getTime() || 0;
+    return ta - tb;
+  });
+
+  const gap = gapMinutes * 60 * 1000;
+  const sessions = [];
+  let current = [];
+  let lastTs = null;
+
+  for (const row of sorted) {
+    const ts = parseDate(row.FirstSeen);
+    if (!lastTs || (ts && ts.getTime() - lastTs > gap)) {
+      if (current.length) sessions.push(current);
+      current = [row];
+    } else {
+      current.push(row);
+    }
+    if (ts) lastTs = ts.getTime();
+  }
+  if (current.length) sessions.push(current);
+
+  return sessions.map((sess, i) => {
+    const first = parseDate(sess[0].FirstSeen);
+    const label = first ? first.toISOString().slice(0,10) : `session_${i+1}`;
+    return { rows: sess, label, suffix: `_session_${String(i+1).padStart(3,'0')}` };
+  });
+}
+
+function splitByGeo(rows, cellSize) {
+  const buckets = {};
+  const noGps = [];
+
+  for (const row of rows) {
+    const lat = parseFloat(row.CurrentLatitude) || 0;
+    const lng = parseFloat(row.CurrentLongitude) || 0;
+    if (Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01) { noGps.push(row); continue; }
+    const cLat = (Math.floor(lat / cellSize) * cellSize).toFixed(6);
+    const cLng = (Math.floor(lng / cellSize) * cellSize).toFixed(6);
+    const key = `${cLat},${cLng}`;
+    (buckets[key] = buckets[key] || []).push(row);
+  }
+
+  const chunks = Object.keys(buckets).sort().map((key, i) => ({
+    rows: buckets[key], label: key, suffix: `_geo_${String(i+1).padStart(3,'0')}`
+  }));
+  if (noGps.length) chunks.push({ rows: noGps, label: 'no GPS', suffix: '_no_gps' });
+  return chunks;
+}
+
+// ─── OUTPUT ───────────────────────────────────────────────────────────────────
+function rowsToCSV(rows) {
+  const lines = [WIGLE_HEADER.join(',')];
+  for (const row of rows) {
+    lines.push(WIGLE_HEADER.map(h => {
+      const v = String(row[h] ?? '');
+      return v.includes(',') || v.includes('"') ? `"${v.replace(/"/g,'""')}"` : v;
+    }).join(','));
+  }
+  return lines.join('\n');
+}
+
+async function writeOutput(path, csv) {
+  if (window.spadra?.isNative) {
+    await window.spadra.writeFile(path, csv);
+  } else {
+    // Browser: trigger download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = path.split('/').pop();
+    a.click();
+    URL.revokeObjectURL(url);
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function parseDate(s) {
+  if (!s) return null;
+  const clean = s.trim().slice(0, 19);
+  const formats = [
+    /(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/,
+    /(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})/,
+  ];
+  for (const re of formats) {
+    const m = clean.match(re);
+    if (m) {
+      try { return new Date(clean.replace('T', ' ')); } catch {}
+    }
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function finish() {
+  isRunning = false;
+  document.getElementById('run-btn').disabled = false;
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

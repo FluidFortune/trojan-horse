@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trojan Horse</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #080c10;
+    --surface:  #0d1520;
+    --border:   #1a2a3a;
+    --accent:   #e05a00;
+    --accent2:  #ff6f00;
+    --text:     #c8d8e8;
+    --muted:    #4a6070;
+    --glow:     rgba(224,90,0,0.15);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 32px 40px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  header h1 {
+    font-size: 1.4em;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  header span {
+    color: var(--muted);
+    font-size: 0.7em;
+    letter-spacing: 2px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 40px;
+    flex: 1;
+  }
+
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 28px 20px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--glow);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .tile:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--glow);
+    transform: translateY(-2px);
+  }
+
+  .tile:hover::before { opacity: 1; }
+  .tile:active { transform: translateY(0); }
+
+  .tile-icon {
+    font-size: 2.4rem;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .tile-name {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .tile-desc {
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  .tile-accent {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .tile:hover .tile-accent { opacity: 1; }
+
+  footer {
+    padding: 16px 40px;
+    color: var(--muted);
+    font-size: 0.6em;
+    letter-spacing: 1px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  #status { color: var(--accent); }
+
+  .error {
+    padding: 40px;
+    color: var(--muted);
+    font-size: 0.8em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ Trojan Horse</h1>
+  <span>app launcher</span>
+</header>
+
+<div class="grid" id="grid">
+  <div class="error">Loading apps...</div>
+</div>
+
+<footer>
+  <span id="platform">initializing...</span>
+  <span id="status">●</span>
+</footer>
+
+<script>
+async function init() {
+  const grid = document.getElementById('grid');
+  const platformEl = document.getElementById('platform');
+  const statusEl = document.getElementById('status');
+
+  // Detect environment
+  const isNative = window.spadra?.isNative;
+
+  if (isNative) {
+    const info = await window.spadra.appInfo();
+    platformEl.textContent = `${info.platform} · trojan horse ${info.version}`;
+
+    try {
+      const entries = await window.spadra.listDir(info.appsRoot);
+      const apps = [];
+
+      for (const entry of entries) {
+        if (entry.type !== 'dir') continue;
+        try {
+          const raw = await window.spadra.readFile(
+            info.appsRoot + '/' + entry.name + '/app.json'
+          );
+          const meta = JSON.parse(raw);
+          apps.push({ ...meta, slug: entry.name });
+        } catch(e) { /* skip apps without app.json */ }
+      }
+
+      renderApps(apps, grid, (slug) => window.spadra.launchApp(slug));
+      statusEl.textContent = `● ${apps.length} apps`;
+
+    } catch(e) {
+      grid.innerHTML = `<div class="error">Could not read apps folder: ${e.message}</div>`;
+    }
+
+  } else {
+    // Browser fallback — fetch from API
+    platformEl.textContent = 'browser mode · http://localhost:8000';
+    try {
+      // Just show the phantom app tile in browser mode
+      const apps = [
+        { name: 'The Phantom', icon: '👻', description: 'Local AI agent',
+          slug: 'phantom', color: '#e05a00' }
+      ];
+      renderApps(apps, grid, (slug) => {
+        window.location.href = `http://localhost:8000/apps/${slug}/`;
+      });
+      statusEl.textContent = '● 1 app';
+    } catch(e) {
+      grid.innerHTML = `<div class="error">API not reachable. Start phantom_api.py first.</div>`;
+    }
+  }
+}
+
+function renderApps(apps, grid, onLaunch) {
+  if (!apps.length) {
+    grid.innerHTML = '<div class="error">No apps found.</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  for (const app of apps) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    const color = app.color || '#e05a00';
+    tile.innerHTML = `
+      <span class="tile-icon">${app.icon || '📦'}</span>
+      <div class="tile-name">${app.name}</div>
+      <div class="tile-desc">${app.description || ''}</div>
+      <div class="tile-accent" style="background:${color}"></div>
+    `;
+    tile.onclick = () => onLaunch(app.slug);
+    grid.appendChild(tile);
+  }
+}
+
+init().catch(console.error);
+</script>
+</body>
+</html>

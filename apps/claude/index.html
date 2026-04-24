@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    font-family: system-ui, sans-serif;
+  }
+
+  /* ── MINIMAL TOOLBAR ─────────────────────────────────────── */
+  .toolbar {
+    height: 36px;
+    background: #111;
+    border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+    flex-shrink: 0;
+    -webkit-app-region: drag;  /* makes toolbar drag the window on macOS */
+    user-select: none;
+  }
+
+  .toolbar-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #888;
+    font-size: 0.7em;
+    padding: 3px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.1s;
+    -webkit-app-region: no-drag;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+  }
+
+  .toolbar-btn:hover { border-color: #555; color: #bbb; background: #1a1a1a; }
+
+  .toolbar-title {
+    font-size: 0.72em;
+    color: #555;
+    letter-spacing: 1px;
+  }
+
+  .toolbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #333;
+    transition: background 0.3s;
+  }
+
+  .status-dot.online  { background: #4CAF50; box-shadow: 0 0 6px rgba(76,175,80,0.5); }
+  .status-dot.loading { background: #FF9800; animation: pulse 1s ease-in-out infinite; }
+  .status-dot.error   { background: #f44336; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── WEBVIEW FRAME ───────────────────────────────────────── */
+  iframe {
+    flex: 1;
+    border: none;
+    width: 100%;
+    display: block;
+  }
+
+  /* ── LOADING SCREEN ──────────────────────────────────────── */
+  #loading {
+    position: absolute;
+    inset: 36px 0 0;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    z-index: 10;
+    transition: opacity 0.4s;
+  }
+
+  #loading.hidden { opacity: 0; pointer-events: none; }
+
+  .loading-logo {
+    font-size: 3em;
+    animation: breathe 2s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%,100% { transform: scale(1);   opacity: 0.8; }
+    50%      { transform: scale(1.05); opacity: 1; }
+  }
+
+  .loading-text {
+    font-size: 0.75em;
+    color: #555;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .loading-bar {
+    width: 120px;
+    height: 2px;
+    background: #222;
+    overflow: hidden;
+    border-radius: 1px;
+  }
+
+  .loading-fill {
+    height: 100%;
+    background: #cc785c;
+    animation: load-sweep 1.8s ease-in-out infinite;
+    border-radius: 1px;
+  }
+
+  @keyframes load-sweep {
+    0%   { width: 0%;   margin-left: 0; }
+    50%  { width: 60%;  margin-left: 20%; }
+    100% { width: 0%;   margin-left: 100%; }
+  }
+
+  /* ── ERROR SCREEN ────────────────────────────────────────── */
+  #error-screen {
+    display: none;
+    position: absolute;
+    inset: 36px 0 0;
+    background: #111;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 10;
+    text-align: center;
+    padding: 40px;
+  }
+
+  #error-screen.show { display: flex; }
+
+  .error-icon { font-size: 2.5em; }
+
+  .error-title {
+    font-size: 0.85em;
+    color: #888;
+    letter-spacing: 2px;
+  }
+
+  .error-sub {
+    font-size: 0.7em;
+    color: #444;
+    line-height: 1.8;
+    max-width: 340px;
+  }
+
+  .retry-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #666;
+    font-size: 0.7em;
+    padding: 8px 24px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+
+  .retry-btn:hover { border-color: #cc785c; color: #cc785c; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-title">CLAUDE</div>
+  <button class="toolbar-btn" onclick="goHome()">New Chat</button>
+  <button class="toolbar-btn" onclick="reload()">↻</button>
+  <div class="toolbar-right">
+    <div class="status-dot loading" id="status-dot"></div>
+  </div>
+</div>
+
+<!-- LOADING SPLASH -->
+<div id="loading">
+  <div class="loading-logo">🤖</div>
+  <div class="loading-text">Connecting to Claude</div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+</div>
+
+<!-- ERROR SCREEN -->
+<div id="error-screen">
+  <div class="error-icon">⚠️</div>
+  <div class="error-title">NO CONNECTION</div>
+  <div class="error-sub">
+    Could not reach claude.ai.<br>
+    Check your internet connection and try again.
+  </div>
+  <button class="retry-btn" onclick="reload()">RETRY</button>
+</div>
+
+<!-- THE ACTUAL CLAUDE UI -->
+<iframe
+  id="frame"
+  src="https://claude.ai"
+  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-storage-access-by-user-activation"
+  allow="clipboard-read; clipboard-write; microphone"
+></iframe>
+
+<script>
+const frame   = document.getElementById('frame');
+const loading = document.getElementById('loading');
+const errScr  = document.getElementById('error-screen');
+const dot     = document.getElementById('status-dot');
+
+let loadTimeout;
+
+function showLoading() {
+  loading.classList.remove('hidden');
+  errScr.classList.remove('show');
+  dot.className = 'status-dot loading';
+  clearTimeout(loadTimeout);
+  // If no load signal in 15s, show error
+  loadTimeout = setTimeout(showError, 15000);
+}
+
+function showError() {
+  loading.classList.add('hidden');
+  errScr.classList.add('show');
+  dot.className = 'status-dot error';
+}
+
+function showLoaded() {
+  clearTimeout(loadTimeout);
+  loading.classList.add('hidden');
+  errScr.classList.remove('show');
+  dot.className = 'status-dot online';
+}
+
+frame.addEventListener('load', () => {
+  try {
+    // If we can access the frame URL it loaded fine
+    const url = frame.contentWindow?.location?.href;
+    if (url && url !== 'about:blank') showLoaded();
+    else showLoaded(); // cross-origin — assume success
+  } catch(e) {
+    // Cross-origin access blocked = page loaded fine
+    showLoaded();
+  }
+});
+
+frame.addEventListener('error', showError);
+
+// Set native window title if running in Trojan Horse
+if (window.spadra?.isNative) {
+  window.spadra.setTitle('Claude');
+}
+
+// Watch for title changes from the frame (claude.ai updates <title> per conversation)
+// Can't read cross-origin title directly, but we can use postMessage if claude.ai sends it
+// For now, just keep "Claude" as the window title.
+
+function goHome() {
+  showLoading();
+  frame.src = 'https://claude.ai';
+}
+
+function reload() {
+  showLoading();
+  frame.contentWindow?.location.reload();
+  // Fallback if cross-origin blocks the reload
+  setTimeout(() => {
+    try { frame.contentWindow.location.reload(); }
+    catch(e) { frame.src = frame.src; }
+  }, 100);
+}
+
+// Init
+showLoading();
+</script>
+</body>
+</html>

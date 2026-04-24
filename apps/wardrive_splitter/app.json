@@ -1,0 +1,7 @@
+{
+  "name": "Wardrive Splitter",
+  "description": "Split WiGLE CSV into Smelter-ready chunks",
+  "icon": "🛰",
+  "version": "1.0.0",
+  "color": "#00c8ff"
+}

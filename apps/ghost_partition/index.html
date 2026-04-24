@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghost Partition Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #000000;
+    --dark-bg:   #020802;
+    --header-bg: #020A02;
+    --card-bg:   #040F04;
+    --border:    #0A3A0A;
+    --border-hi: #0A6020;
+    --dim:       #0A3010;
+    --mid:       #0A6020;
+    --green:     #00C800;
+    --bright:    #00FF40;
+    --cyan:      #00FFFF;
+    --yellow:    #FFE000;
+    --red:       #FF2000;
+    --white:     #FFFFFF;
+    --dim-text:  #607060;
+    --glow-g:    rgba(0,200,0,0.12);
+    --glow-c:    rgba(0,255,255,0.1);
+    --grid: repeating-linear-gradient(
+      0deg, transparent, transparent 23px,
+      rgba(0,60,0,0.3) 23px, rgba(0,60,0,0.3) 24px
+    ), repeating-linear-gradient(
+      90deg, transparent, transparent 23px,
+      rgba(0,60,0,0.3) 23px, rgba(0,60,0,0.3) 24px
+    );
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Space Mono', monospace;
+    overflow: hidden;
+  }
+
+  body {
+    background-image: var(--grid);
+    background-size: 24px 24px;
+  }
+
+  /* ── PHOSPHOR GLOW ──────────────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-rows: 48px 1fr 28px;
+    height: 100vh;
+    position: relative;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────── */
+  header {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--green);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+    box-shadow: 0 2px 20px var(--glow-g);
+  }
+
+  .logo {
+    font-family: 'VT323', monospace;
+    font-size: 1.6em;
+    color: var(--bright);
+    letter-spacing: 3px;
+    text-shadow: 0 0 12px var(--bright), 0 0 24px rgba(0,255,64,0.4);
+  }
+
+  .logo-sub {
+    font-size: 0.6em;
+    color: var(--dim-text);
+    letter-spacing: 2px;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .platform-tag {
+    font-size: 0.6em;
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    padding: 2px 8px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px var(--cyan);
+  }
+
+  /* ── MAIN LAYOUT ────────────────────────────────────────── */
+  main {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    overflow: hidden;
+  }
+
+  /* ── LEFT CONTROLS ──────────────────────────────────────── */
+  .sidebar {
+    background: var(--dark-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-inner {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  /* ── SECTION LABEL ──────────────────────────────────────── */
+  .sec {
+    background: var(--header-bg);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 4px 14px;
+    font-size: 0.6em;
+    color: var(--mid);
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .sec::before { content: '//'; color: var(--dim-text); }
+
+  /* ── DEVICE ROW ─────────────────────────────────────────── */
+  .device-area {
+    padding: 10px 12px;
+  }
+
+  .device-select {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 0.68em;
+    padding: 6px 10px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .device-select:focus { border-color: var(--green); }
+
+  /* ── BUTTONS ────────────────────────────────────────────── */
+  .btn-area {
+    padding: 6px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 0.65em;
+    padding: 7px 12px;
+    cursor: pointer;
+    text-align: left;
+    letter-spacing: 1px;
+    transition: all 0.12s;
+    width: 100%;
+  }
+
+  .btn:hover:not(:disabled) {
+    border-color: var(--green);
+    background: var(--glow-g);
+    color: var(--bright);
+    box-shadow: 0 0 10px var(--glow-g);
+  }
+
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn.danger {
+    color: var(--red);
+    border-color: #3A0800;
+  }
+
+  .btn.danger:hover:not(:disabled) {
+    border-color: var(--red);
+    background: rgba(255,32,0,0.08);
+    color: var(--red);
+    box-shadow: 0 0 10px rgba(255,32,0,0.15);
+  }
+
+  .btn.cyan { color: var(--cyan); border-color: #004040; }
+
+  .btn.cyan:hover:not(:disabled) {
+    border-color: var(--cyan);
+    background: var(--glow-c);
+    box-shadow: 0 0 10px var(--glow-c);
+  }
+
+  .btn.yellow { color: var(--yellow); border-color: #3A3000; }
+
+  .btn.yellow:hover:not(:disabled) {
+    border-color: var(--yellow);
+    background: rgba(255,224,0,0.06);
+  }
+
+  .btn-icon { font-size: 1.1em; width: 18px; text-align: center; }
+
+  /* ── INFO BOX ───────────────────────────────────────────── */
+  .info-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    margin: 0 12px 6px;
+    padding: 8px 10px;
+    font-size: 0.6em;
+    color: var(--dim-text);
+    line-height: 1.6;
+  }
+
+  /* ── STEALTH INDICATOR ──────────────────────────────────── */
+  .stealth-indicator {
+    margin: 4px 12px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.62em;
+  }
+
+  .stealth-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--dim);
+  }
+
+  .stealth-dot.stealthed { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .stealth-dot.visible   { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+
+  .spacer { height: 12px; }
+
+  /* ── TERMINAL ───────────────────────────────────────────── */
+  .terminal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .term-head {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 5px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .term-title {
+    font-size: 0.62em;
+    color: var(--mid);
+    letter-spacing: 2px;
+  }
+
+  .term-badge {
+    font-size: 0.58em;
+    padding: 2px 8px;
+    letter-spacing: 1px;
+    margin-left: auto;
+    border: 1px solid var(--border);
+    color: var(--dim-text);
+  }
+
+  .term-badge.busy   { color: var(--yellow); border-color: var(--yellow); animation: blink 0.8s step-end infinite; }
+  .term-badge.ok     { color: var(--green);  border-color: var(--green); }
+  .term-badge.fail   { color: var(--red);    border-color: var(--red); }
+
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+  .term-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    font-family: 'VT323', monospace;
+    font-size: 1.05em;
+    line-height: 1.5;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    word-break: break-all;
+  }
+
+  /* CRT flicker */
+  .term-body { animation: flicker 8s step-end infinite; }
+  @keyframes flicker { 0%,95%,100%{opacity:1} 96%{opacity:0.97} 97%{opacity:1} 98%{opacity:0.98} }
+
+  .log  { display: block; }
+  .g    { color: var(--green); }
+  .bg   { color: var(--bright); }
+  .c    { color: var(--cyan); }
+  .y    { color: var(--yellow); }
+  .r    { color: var(--red); }
+  .d    { color: var(--dim-text); }
+  .w    { color: var(--white); }
+
+  .cursor {
+    display: inline-block;
+    width: 10px;
+    height: 1em;
+    background: var(--bright);
+    vertical-align: text-bottom;
+    animation: cur-blink 1s step-end infinite;
+    margin-left: 2px;
+    box-shadow: 0 0 6px var(--bright);
+  }
+
+  @keyframes cur-blink { 0%,100%{opacity:1}50%{opacity:0} }
+
+  /* ── PROGRESS ───────────────────────────────────────────── */
+  .progress {
+    height: 3px;
+    background: var(--dim);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .progress-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--mid), var(--bright));
+    width: 0%;
+    transition: width 0.4s;
+    box-shadow: 0 0 8px var(--bright);
+  }
+
+  .progress-inner.running {
+    width: 35% !important;
+    animation: march 1.8s linear infinite;
+  }
+
+  @keyframes march {
+    0%   { transform: translateX(-150%); }
+    100% { transform: translateX(400%); }
+  }
+
+  /* ── FOOTER ─────────────────────────────────────────────── */
+  footer {
+    background: var(--header-bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    font-size: 0.58em;
+    color: var(--dim-text);
+    letter-spacing: 1px;
+  }
+
+  #foot-status { color: var(--mid); }
+
+  /* ── MODAL CONFIRM ──────────────────────────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: var(--dark-bg);
+    border: 1px solid var(--red);
+    box-shadow: 0 0 40px rgba(255,32,0,0.2);
+    width: 420px;
+    max-width: 90vw;
+    padding: 24px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .modal-title {
+    font-size: 0.85em;
+    color: var(--red);
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .modal-body {
+    font-size: 0.7em;
+    color: var(--dim-text);
+    line-height: 1.8;
+    margin-bottom: 20px;
+  }
+
+  .modal-device {
+    color: var(--yellow);
+    font-weight: bold;
+    display: block;
+    margin: 8px 0;
+    font-size: 1.1em;
+  }
+
+  .modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .modal-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--dim-text);
+    font-family: inherit;
+    font-size: 0.68em;
+    padding: 8px 20px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.12s;
+  }
+
+  .modal-btn.confirm {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .modal-btn:hover { background: var(--glow-g); color: var(--green); border-color: var(--green); }
+  .modal-btn.confirm:hover { background: rgba(255,32,0,0.1); color: var(--red); border-color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">🌙 PISCES MOON OS</div>
+    <div class="logo-sub">GHOST PARTITION TOOL  v1.0</div>
+    <div class="header-right">
+      <div class="platform-tag" id="platform-tag">DETECTING...</div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-inner">
+
+        <!-- DEVICE SELECTION -->
+        <div class="sec">DEVICE SELECTION</div>
+        <div class="device-area">
+          <select class="device-select" id="device-select">
+            <option value="">— scanning... —</option>
+          </select>
+        </div>
+        <div class="btn-area">
+          <button class="btn" onclick="refreshDevices()">
+            <span class="btn-icon">⟳</span> REFRESH DEVICES
+          </button>
+        </div>
+
+        <!-- FORMAT -->
+        <div class="sec">FORMAT CARD</div>
+        <div class="info-box">
+          Creates two FAT32 partitions:<br>
+          P1: PUBLIC  (medical, baseball, music)<br>
+          P2: GHOST   (wardrive, vault, scans)<br><br>
+          16GB → 2×8GB &nbsp; 64GB → 2×32GB (max)
+        </div>
+        <div class="btn-area">
+          <button class="btn danger" id="btn-format" onclick="confirmFormat()">
+            <span class="btn-icon">⚠</span> FORMAT SD CARD
+          </button>
+        </div>
+
+        <!-- VERIFY -->
+        <div class="sec">VERIFY LAYOUT</div>
+        <div class="btn-area">
+          <button class="btn" onclick="verifyCard()">
+            <span class="btn-icon">✓</span> VERIFY CARD LAYOUT
+          </button>
+        </div>
+
+        <!-- BROWSE / EXPORT -->
+        <div class="sec">GHOST PARTITION DATA</div>
+        <div class="info-box">
+          Disaster recovery — access Ghost<br>
+          Partition data when T-Deck is<br>
+          unavailable. Card must be inserted<br>
+          and Ghost Partition mounted.
+        </div>
+        <div class="btn-area">
+          <button class="btn cyan" onclick="browseGhost()">
+            <span class="btn-icon">📂</span> BROWSE GHOST PARTITION
+          </button>
+          <button class="btn cyan" onclick="exportGhost()">
+            <span class="btn-icon">⬇</span> EXPORT TO COMPUTER
+          </button>
+        </div>
+
+        <!-- STEALTH CONTROL -->
+        <div class="sec">STEALTH CONTROL</div>
+        <div class="info-box">
+          Stealth: hides Ghost Partition from<br>
+          Mac/Linux/Windows card readers.<br>
+          T-Deck unaffected by either state.
+        </div>
+        <div class="stealth-indicator">
+          <span style="color:var(--dim-text);letter-spacing:1px">PARTITION 2 STATUS</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="stealth-label" style="font-size:0.9em;color:var(--dim-text)">UNKNOWN</span>
+            <div class="stealth-dot" id="stealth-dot"></div>
+          </div>
+        </div>
+        <div class="btn-area">
+          <button class="btn" onclick="unlockGhost()">
+            <span class="btn-icon">👁</span> UNLOCK GHOST PARTITION
+          </button>
+          <button class="btn yellow" onclick="stealthGhost()">
+            <span class="btn-icon">🔒</span> STEALTH GHOST PARTITION
+          </button>
+        </div>
+
+        <!-- SYSTEM -->
+        <div class="sec">SYSTEM</div>
+        <div class="btn-area">
+          <button class="btn" onclick="checkDeps()">
+            <span class="btn-icon">⚙</span> CHECK DEPENDENCIES
+          </button>
+          <button class="btn" onclick="clearLog()" style="color:var(--dim-text)">
+            <span class="btn-icon">✕</span> CLEAR LOG
+          </button>
+        </div>
+
+        <div class="spacer"></div>
+      </div>
+    </div>
+
+    <!-- TERMINAL -->
+    <div class="terminal">
+      <div class="term-head">
+        <div class="term-title">// TERMINAL OUTPUT</div>
+        <div class="term-badge" id="term-badge">READY</div>
+      </div>
+      <div class="progress">
+        <div class="progress-inner" id="progress"></div>
+      </div>
+      <div class="term-body" id="terminal">
+        <span class="log bg">╔══════════════════════════════════════════════╗</span>
+        <span class="log bg">║  🌙 PISCES MOON OS — GHOST PARTITION TOOL   ║</span>
+        <span class="log bg">║     SD Card Formatter & Partition Manager    ║</span>
+        <span class="log bg">╚══════════════════════════════════════════════╝</span>
+        <span class="log d">─────────────────────────────────────────────</span>
+        <span class="log g" id="init-msg">Initializing...<span class="cursor"></span></span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <span id="foot-status">INITIALIZING</span>
+    <span>"Reticulating Splines since '94."</span>
+    <span>PISCES MOON OS</span>
+  </footer>
+
+</div>
+
+<!-- MODAL: FORMAT CONFIRMATION -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">⚠ FORMAT SD CARD</div>
+    <div class="modal-body">
+      This will <strong style="color:var(--red)">ERASE ALL DATA</strong> on:<br>
+      <span class="modal-device" id="modal-device">—</span>
+      Two FAT32 partitions will be created:<br>
+      &nbsp;• PMOON-PUB &nbsp; (Public / Decoy)<br>
+      &nbsp;• PMOON-GHOST (Ghost / Tactical)<br><br>
+      <strong style="color:var(--yellow)">There is no undo. Are you sure?</strong>
+    </div>
+    <div class="modal-buttons">
+      <button class="modal-btn" onclick="closeModal()">CANCEL</button>
+      <button class="modal-btn confirm" id="modal-confirm-btn" onclick="runFormat()">FORMAT</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let devices = [];     // [{path, size, name}]
+let platform = 'unknown';
+let busy = false;
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  // Detect platform
+  if (window.spadra?.isNative) {
+    platform = window.spadra.platform; // 'macos' | 'linux' | 'windows'
+    window.spadra.setTitle('Ghost Partition Tool');
+  } else {
+    platform = detectBrowserPlatform();
+  }
+
+  const tag = document.getElementById('platform-tag');
+  tag.textContent = platform.toUpperCase();
+
+  removeCursors();
+  log(`Platform: ${platform.toUpperCase()} | Python backend via phantom_api`, 'g');
+  log(`Ghost Partition Tool v1.0 ready.`, 'bg');
+  log('─────────────────────────────────────────────', 'd');
+
+  if (!window.spadra?.isNative) {
+    log('[WARN] Browser mode — operations require Trojan Horse native wrapper.', 'y');
+    log('       Format/stealth ops use phantom_api.py via HTTP.', 'd');
+  }
+
+  log('Insert SD card and click REFRESH DEVICES.', 'g');
+  addCursor();
+
+  setFooter('READY');
+  await refreshDevices();
+}
+
+function detectBrowserPlatform() {
+  const ua = navigator.userAgent;
+  if (ua.includes('Mac')) return 'macos';
+  if (ua.includes('Linux')) return 'linux';
+  if (ua.includes('Win')) return 'windows';
+  return 'unknown';
+}
+
+// ─── LOGGING ──────────────────────────────────────────────────────────────────
+function log(text, cls = 'g') {
+  removeCursors();
+  const el = document.createElement('span');
+  el.className = `log ${cls}`;
+  el.textContent = text;
+  document.getElementById('terminal').appendChild(el);
+  scrollTerm();
+}
+
+function logWithCursor(text, cls = 'g') {
+  removeCursors();
+  const el = document.createElement('span');
+  el.className = `log ${cls}`;
+  el.textContent = text;
+  const cur = document.createElement('span');
+  cur.className = 'cursor';
+  el.appendChild(cur);
+  document.getElementById('terminal').appendChild(el);
+  scrollTerm();
+}
+
+function addCursor() {
+  removeCursors();
+  const term = document.getElementById('terminal');
+  const last = term.lastElementChild;
+  if (last) {
+    const cur = document.createElement('span');
+    cur.className = 'cursor';
+    last.appendChild(cur);
+  }
+}
+
+function removeCursors() {
+  document.querySelectorAll('.cursor').forEach(c => c.remove());
+}
+
+function scrollTerm() {
+  const t = document.getElementById('terminal');
+  t.scrollTop = t.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('terminal').innerHTML = '';
+  log('Log cleared.', 'd');
+  addCursor();
+}
+
+function setBadge(text, cls = '') {
+  const b = document.getElementById('term-badge');
+  b.textContent = text;
+  b.className = `term-badge ${cls}`;
+}
+
+function setFooter(text) {
+  document.getElementById('foot-status').textContent = text;
+}
+
+function setProgress(pct, running = false) {
+  const p = document.getElementById('progress');
+  p.classList.toggle('running', running);
+  if (!running) p.style.width = `${pct}%`;
+}
+
+function setBusy(b) {
+  busy = b;
+  setBadge(b ? 'WORKING...' : 'READY', b ? 'busy' : '');
+  setProgress(0, b);
+  document.querySelectorAll('.btn').forEach(el => el.disabled = b);
+}
+
+// ─── DEVICE SCAN ──────────────────────────────────────────────────────────────
+async function refreshDevices() {
+  setBusy(true);
+  log('─────────────────────────────────────────────', 'd');
+  log('[ .... ] Scanning for removable devices...', 'g');
+  setFooter('SCANNING...');
+
+  try {
+    const result = await apiCall('list_devices', {});
+    devices = result.devices || [];
+
+    const sel = document.getElementById('device-select');
+    if (devices.length === 0) {
+      sel.innerHTML = '<option value="">No removable devices found</option>';
+      log('[ WARN ] No removable devices detected.', 'y');
+      log('         Insert SD card via USB reader and refresh.', 'd');
+    } else {
+      sel.innerHTML = devices.map((d,i) =>
+        `<option value="${i}">${d.path}  (${d.size})  ${d.name}</option>`
+      ).join('');
+      log(`[  OK  ] Found ${devices.length} device(s).`, 'bg');
+      devices.forEach(d => log(`         ${d.path}  ${d.size}  ${d.name}`, 'c'));
+    }
+
+    setFooter('READY');
+  } catch (e) {
+    log(`[ FAIL ] Device scan error: ${e.message}`, 'r');
+    log('         Is phantom_api.py running?', 'd');
+
+    // Fallback: show manual entry if API not reachable
+    const sel = document.getElementById('device-select');
+    sel.innerHTML = [
+      '<option value="">API not reachable — enter path manually</option>',
+      '<option value="manual-sdb">/dev/sdb (manual)</option>',
+      '<option value="manual-sdc">/dev/sdc (manual)</option>',
+    ].join('');
+    setFooter('API OFFLINE');
+  }
+
+  setBusy(false);
+  addCursor();
+}
+
+function getSelectedDevice() {
+  const sel = document.getElementById('device-select');
+  const val = sel.value;
+  if (!val || val.startsWith('manual-')) {
+    // Manual path
+    const map = { 'manual-sdb': '/dev/sdb', 'manual-sdc': '/dev/sdc' };
+    return map[val] || null;
+  }
+  return devices[parseInt(val)]?.path || null;
+}
+
+// ─── FORMAT ───────────────────────────────────────────────────────────────────
+function confirmFormat() {
+  const device = getSelectedDevice();
+  if (!device) {
+    log('[ FAIL ] No device selected. Refresh and select a device first.', 'r');
+    return;
+  }
+  document.getElementById('modal-device').textContent = device;
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+async function runFormat() {
+  closeModal();
+  const device = getSelectedDevice();
+  if (!device) return;
+
+  log('─────────────────────────────────────────────', 'd');
+  logWithCursor(`FORMATTING ${device}`, 'r');
+  setBusy(true);
+  setFooter('FORMATTING...');
+
+  try {
+    const result = await apiCall('format_card', { device, platform });
+    streamLog(result.log || []);
+    if (result.success) {
+      log('[  OK  ] Format sequence complete.', 'bg');
+      log('[  OK  ] Ghost Partition stealth byte-flip applied.', 'bg');
+      setStealthState('stealthed');
+      setFooter('FORMAT COMPLETE');
+      setBadge('DONE', 'ok');
+    } else {
+      log(`[ FAIL ] Format failed: ${result.error || 'unknown error'}`, 'r');
+      setFooter('FORMAT FAILED');
+      setBadge('FAIL', 'fail');
+    }
+  } catch (e) {
+    log(`[ FAIL ] ${e.message}`, 'r');
+    setFooter('ERROR');
+    setBadge('FAIL', 'fail');
+  }
+
+  setBusy(false);
+  addCursor();
+  await refreshDevices();
+}
+
+// ─── VERIFY ───────────────────────────────────────────────────────────────────
+async function verifyCard() {
+  const device = getSelectedDevice();
+  if (!device) { log('[ FAIL ] No device selected.', 'r'); return; }
+
+  log('─────────────────────────────────────────────', 'd');
+  log(`[ .... ] Verifying layout on ${device}...`, 'g');
+  setBusy(true);
+  setFooter('VERIFYING...');
+
+  try {
+    const result = await apiCall('verify_card', { device, platform });
+    streamLog(result.log || []);
+
+    if (result.has_ghost && result.has_pub) {
+      log('[  OK  ] Both Pisces Moon partitions detected.', 'bg');
+      log('[  OK  ] Card correctly formatted for Ghost Partition.', 'bg');
+      setFooter('VERIFIED OK');
+      setBadge('OK', 'ok');
+    } else if (result.has_pub) {
+      log('[ WARN ] Only PUBLIC partition found.', 'y');
+      log('[ WARN ] Use FORMAT to create Ghost Partition.', 'y');
+      setFooter('PARTIAL LAYOUT');
+    } else {
+      log('[ WARN ] No Pisces Moon partitions detected.', 'y');
+      log('         Use FORMAT to prepare this card.', 'd');
+      setFooter('NOT FORMATTED');
+    }
+  } catch (e) {
+    log(`[ FAIL ] ${e.message}`, 'r');
+    setFooter('VERIFY ERROR');
+    setBadge('FAIL', 'fail');
+  }
+
+  setBusy(false);
+  addCursor();
+}
+
+// ─── BROWSE ───────────────────────────────────────────────────────────────────
+async function browseGhost() {
+  log('─────────────────────────────────────────────', 'd');
+  log('[ .... ] Locating Ghost Partition...', 'g');
+  setBusy(true);
+  setFooter('SCANNING...');
+
+  try {
+    const result = await apiCall('find_ghost', { platform });
+
+    if (!result.path) {
+      log('[ WARN ] Ghost Partition not auto-detected.', 'y');
+      log('         Insert card and ensure PMOON-GHOST is mounted.', 'd');
+      setFooter('NOT FOUND');
+      setBusy(false); addCursor();
+      return;
+    }
+
+    log(`[  OK  ] Ghost Partition: ${result.path}`, 'bg');
+    streamLog(result.files || []);
+
+    log(`  Total: ${result.file_count || 0} files, ${result.total_kb || 0} KB`, 'w');
+    setFooter(`${result.file_count || 0} FILES FOUND`);
+    setBadge('OK', 'ok');
+  } catch (e) {
+    log(`[ FAIL ] ${e.message}`, 'r');
+    setFooter('BROWSE ERROR');
+  }
+
+  setBusy(false);
+  addCursor();
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+async function exportGhost() {
+  log('─────────────────────────────────────────────', 'd');
+
+  // Ask for destination if native
+  let dest = null;
+  if (window.spadra?.isNative) {
+    try {
+      const info = await window.spadra.appInfo();
+      dest = `${info.appsRoot || '/tmp'}/PiscesMoonExport`;
+    } catch {}
+  }
+  if (!dest) {
+    dest = prompt('Export destination path:', `${getHomePlaceholder()}/PiscesMoonExport`);
+    if (!dest) { log('[ WARN ] Export cancelled.', 'y'); return; }
+  }
+
+  log(`[ .... ] Locating Ghost Partition...`, 'g');
+  setBusy(true);
+  setFooter('EXPORTING...');
+
+  try {
+    const result = await apiCall('export_ghost', { platform, dest });
+    streamLog(result.log || []);
+
+    if (result.success) {
+      log(`[  OK  ] Export complete — ${result.copied || 0} files copied.`, 'bg');
+      if (result.errors) log(`[ WARN ] ${result.errors} file(s) failed.`, 'y');
+      log('[INFO]  Wardrive CSVs → open in Excel or import to WiGLE', 'c');
+      log('[INFO]  JSON files → any JSON viewer or Python', 'c');
+      setFooter(`EXPORTED ${result.copied || 0} FILES`);
+      setBadge('OK', 'ok');
+    } else {
+      log(`[ FAIL ] Export failed: ${result.error || ''}`, 'r');
+      setFooter('EXPORT FAILED');
+      setBadge('FAIL', 'fail');
+    }
+  } catch (e) {
+    log(`[ FAIL ] ${e.message}`, 'r');
+    setFooter('ERROR');
+  }
+
+  setBusy(false);
+  addCursor();
+}
+
+// ─── STEALTH ──────────────────────────────────────────────────────────────────
+async function stealthGhost() {
+  const device = getSelectedDevice();
+  if (!device) { log('[ FAIL ] No device selected.', 'r'); return; }
+
+  log('─────────────────────────────────────────────', 'd');
+  log(`[ .... ] Applying stealth to Ghost Partition on ${device}...`, 'g');
+  setBusy(true);
+  setFooter('STEALTHING...');
+
+  try {
+    const result = await apiCall('stealth', { device, platform });
+    streamLog(result.log || []);
+
+    if (result.success) {
+      log('[  OK  ] Ghost Partition stealthed — invisible to consumer OS.', 'bg');
+      log('[INFO]  T-Deck will still mount it correctly.', 'c');
+      setStealthState('stealthed');
+      setFooter('STEALTHED');
+      setBadge('OK', 'ok');
+    } else {
+      log(`[ FAIL ] Stealth failed: ${result.error || 'check permissions / run as admin'}`, 'r');
+      setFooter('STEALTH FAILED');
+      setBadge('FAIL', 'fail');
+    }
+  } catch (e) {
+    log(`[ FAIL ] ${e.message}`, 'r');
+  }
+
+  setBusy(false);
+  addCursor();
+}
+
+async function unlockGhost() {
+  const device = getSelectedDevice();
+  if (!device) { log('[ FAIL ] No device selected.', 'r'); return; }
+
+  log('─────────────────────────────────────────────', 'd');
+  log(`[ .... ] Unlocking Ghost Partition on ${device}...`, 'g');
+  setBusy(true);
+  setFooter('UNLOCKING...');
+
+  try {
+    const result = await apiCall('unstealth', { device, platform });
+    streamLog(result.log || []);
+
+    if (result.success) {
+      log('[  OK  ] Ghost Partition unlocked — visible on desktop.', 'bg');
+      if (platform === 'macos') {
+        log('[INFO]  Auto-mount attempted. Check Finder for PMOON-GHOST.', 'c');
+      }
+      log('[ WARN ] Remember to Stealth when done to re-hide partition.', 'y');
+      setStealthState('visible');
+      setFooter('UNLOCKED');
+      setBadge('OK', 'ok');
+    } else {
+      log(`[ FAIL ] Unlock failed: ${result.error || 'check permissions / run as admin'}`, 'r');
+      setFooter('UNLOCK FAILED');
+      setBadge('FAIL', 'fail');
+    }
+  } catch (e) {
+    log(`[ FAIL ] ${e.message}`, 'r');
+  }
+
+  setBusy(false);
+  addCursor();
+}
+
+// ─── DEPS ─────────────────────────────────────────────────────────────────────
+async function checkDeps() {
+  log('─────────────────────────────────────────────', 'd');
+  log('[ .... ] Checking system dependencies...', 'g');
+  setBusy(true);
+
+  try {
+    const result = await apiCall('check_deps', { platform });
+    streamLog(result.log || []);
+    if (result.ok) {
+      log('[  OK  ] All dependencies satisfied.', 'bg');
+      setFooter('DEPS OK');
+    } else {
+      log('[ WARN ] Some dependencies missing — see log above.', 'y');
+      setFooter('DEPS MISSING');
+    }
+  } catch (e) {
+    // Fallback local check
+    checkDepsFallback();
+  }
+
+  setBusy(false);
+  addCursor();
+}
+
+function checkDepsFallback() {
+  if (platform === 'macos') {
+    log('[  OK  ] macOS: diskutil — built-in, no install needed.', 'bg');
+    log('[  OK  ] macOS: No additional dependencies required.', 'bg');
+    setFooter('DEPS OK');
+  } else if (platform === 'linux') {
+    log('[ WARN ] Linux: cannot verify tools in browser mode.', 'y');
+    log('         Required: parted dosfstools util-linux', 'd');
+    log('         Install:  sudo apt install parted dosfstools util-linux', 'y');
+    setFooter('MANUAL CHECK NEEDED');
+  } else if (platform === 'windows') {
+    log('[  OK  ] Windows: diskpart — built-in.', 'bg');
+    log('[ WARN ] Ensure you are running as Administrator for format ops.', 'y');
+    setFooter('DEPS OK');
+  }
+}
+
+// ─── STEALTH INDICATOR ────────────────────────────────────────────────────────
+function setStealthState(state) {
+  const dot = document.getElementById('stealth-dot');
+  const label = document.getElementById('stealth-label');
+  dot.className = `stealth-dot ${state}`;
+  label.textContent = state === 'stealthed' ? 'STEALTHED' : state === 'visible' ? 'VISIBLE' : 'UNKNOWN';
+  label.style.color = state === 'stealthed' ? 'var(--yellow)' : state === 'visible' ? 'var(--green)' : 'var(--dim-text)';
+}
+
+// ─── API CALL ─────────────────────────────────────────────────────────────────
+async function apiCall(action, params) {
+  // Try phantom_api.py via HTTP
+  const url = `http://localhost:8000/api/ghost_partition`;
+  const body = JSON.stringify({ action, ...params });
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  });
+
+  if (!resp.ok) throw new Error(`API error ${resp.status}`);
+  return resp.json();
+}
+
+// ─── LOG STREAM ───────────────────────────────────────────────────────────────
+function streamLog(lines) {
+  for (const line of lines) {
+    const text = typeof line === 'string' ? line : line.text || '';
+    const type = typeof line === 'object' ? line.type : 'g';
+    const cls = { ok:'bg', info:'c', warn:'y', error:'r', step:'d', dim:'d' }[type] || 'g';
+    log(text, cls);
+  }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function getHomePlaceholder() {
+  if (platform === 'windows') return 'C:\\Users\\username';
+  return '~';
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
